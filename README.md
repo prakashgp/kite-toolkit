@@ -1,0 +1,2 @@
+This repo is source code of google chrome extension available at chrome webstore: https://chrome.google.com/webstore/detail/kite-toolkit/fcnghjcehmbkendncdaecidkhapfphpl 
+The user interface is developed based on vue.js
