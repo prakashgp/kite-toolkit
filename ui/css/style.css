@@ -1,0 +1,54 @@
+@font-face {
+	font-family: 'Duti';
+	src: url('/ui/fonts/Dyuthi.ttf');
+}
+
+body {
+	font-size: 14px;
+	margin: 0;
+}
+
+.section-title {
+	margin-top: 0
+}
+
+.logo {
+	color: #409EFF;
+	font-family: 'Duti';
+	font-size: 30px;
+	float: left;
+	padding: 20px 0
+}
+
+.logo > * {
+	vertical-align: sup;
+}
+
+.line {
+	border-bottom: solid 1px #eee;
+}
+
+.form-row {
+	margin-bottom: 15px;
+}
+
+.form-row .el-input, .form-row .el-select, .form-row .el-input-number {
+	width: 100%;
+}
+
+a {
+	text-decoration: none
+}
+
+.el-input-number, .el-select {
+	width: 100%;
+}
+
+.light {
+	font-weight: 200
+}
+
+.hint {
+	color: silver;
+	font-size: 75%
+}

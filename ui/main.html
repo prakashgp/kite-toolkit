@@ -1,0 +1,338 @@
+ <!DOCTYPE html>
+<html>
+<head>
+	<title>Kite Toolkit</title>
+	<link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+	<link rel="stylesheet" href="css/style.css">
+	<script src="/lib/papaparse.min.js"></script>
+	<script src="/lib/moment.min.js"></script>
+	<script src="/lib/jquery-2.1.4.min.js"></script>
+	<script src="/js/utils.js"></script>
+	<script src="https://unpkg.com/vue/dist/vue.js"></script>
+	<script src="https://unpkg.com/element-ui/lib"></script>
+	<script src="https://unpkg.com/element-ui/lib/umd/locale/en.js"></script>
+</head>
+<body>
+	<div id="app" style="display: none">
+		<el-container>
+			<el-header>
+				<div class="logo"> <img src="/images/logo.png" height="15px"/> <span>kite toolkit </span></div>
+				<el-menu mode="horizontal" style="float: right;"> 
+					<el-menu-item index="1" @click="page = 'alerts'">
+						<i class="el-icon-bell"></i>Alerts
+					</el-menu-item>
+					<el-menu-item index="2" @click="page = 'orders'">
+						<i class="el-icon-tickets"></i>Bulk Orders
+					</el-menu-item>
+					<el-menu-item index="3" @click="page = 'settings'">
+						<i class="el-icon-setting"></i>Settings
+					</el-menu-item>
+					<el-menu-item index="4" @click="donate()">
+						<el-tooltip content="Donations keep this app free">
+							<div> <i class="el-icon-loading"></i>Donate </div>
+						</el-tooltip>
+					</el-menu-item>
+					<el-menu-item index="5" @click="contact()">
+						<i class="el-icon-message"></i>Contact
+					</el-menu-item>
+				</el-menu>
+			</el-header>
+			<div class="line"></div>
+			<el-container style="height: calc(100vh - 80px)">
+				<el-main>
+					<template v-if="page == 'orders'">
+						<el-row class="form-row">
+							<el-col :span="24">
+								<h3 class="section-title light"> Bulk Orders </h3>
+								<el-row>
+									<el-col :span="12">
+										<el-dropdown split-button type="success" @click="createOrderClick()" @command="createOrderClick">
+											<i class="el-icon-plus"></i>
+											Create
+											<el-dropdown-menu slot="dropdown">
+												<el-dropdown-item command="breakout">OHLC Breakout Orders Generator</el-dropdown-item>
+											</el-dropdown-menu>
+										</el-dropdown>
+										<el-button @click="importOrders()" class="form-row" icon="el-icon-download">Import</el-button>
+										<el-button @click="exportOrders()" class="form-row" icon="el-icon-upload2">Export</el-button> &nbsp;
+										<el-dropdown split-button type="primary" @click="submitOrders()" @command="submitOrders">
+											<i class="el-icon-upload2"></i>
+										  Submit All
+										  <el-dropdown-menu slot="dropdown">
+										    <el-dropdown-item command="selected">Submit Selected</el-dropdown-item>
+										    <el-dropdown-item :command="'tag:' + tag" v-for="tag in tags">Submit by Tag: {{tag}}</el-dropdown-item>
+										  </el-dropdown-menu>
+										</el-dropdown>
+									</el-col>
+									<el-col :span="6" style="padding: 10px 0">
+										<el-switch title="Submit as regular or after market orders" v-model="amo" active-text="AMO" inactive-text="Regular">
+										</el-switch>
+									</el-col>
+									<el-col :span="6">
+										<el-input placeholder="Search" prefix-icon="el-icon-search" v-model="search">
+										</el-input>
+									</el-col>
+								</el-row>
+								<el-table
+									border
+									empty-text="You haven't created any orders"
+									:data="filteredOrders"
+									style="width: 100%"
+									@selection-change="handleSelection" style="width: 100%">
+									<el-table-column sortable type="selection"></el-table-column>
+									<el-table-column sortable prop="instrument.token" label="Instrument" width="250">
+										<template scope="prop">
+											<span style="border-bottom: dotted 1px #aeaaaa">
+												<a href="#" style="color: inherit">{{prop.row.tradingsymbol}} </a>
+											</span>
+											<sup>
+												 <span style="color: #8492a6"> {{prop.row.exchange}}</span> 
+												</a>
+											</sup>
+										</template>
+									</el-table-column>
+									<el-table-column sortable prop="transaction_type" label="Buy / Sell">
+										<template scope="prop">
+											<span :style="{color: prop.row.transaction_type == 'BUY' ? '#67C23A' : '#F56C6C'}">{{prop.row.transaction_type}}</span>
+										</template>
+									</el-table-column>
+									<el-table-column sortable prop="product" label="Product"></el-table-column>
+									<el-table-column sortable prop="order_type" label="Order type"></el-table-column>
+									<el-table-column prop="quantity" label="Quantity"></el-table-column>
+									<el-table-column prop="trigger_price" label="Trigger price">
+										<template scope="prop">{{prop.row.trigger_price | formatCurrency}}</template>
+									</el-table-column>
+									<el-table-column prop="price" label="Price">
+										<template scope="prop">{{prop.row.price | formatCurrency}}</template>
+									</el-table-column>
+									<el-table-column sortable prop="status" label="Status">
+										<template scope="prop">
+											<el-tag :type="statusColors[prop.row.status]" size="mini">{{prop.row.status}}</el-tag>
+										</template>
+									</el-table-column>
+									<el-table-column fixed="right" width="120" prop="" label="Actions">
+										<template scope="slot">
+											<el-button circle icon="el-icon-edit" size="small" @click="editOrder(slot.row)"></el-button>
+											<el-button circle icon="el-icon-delete" size="small" @click="deleteOrder(slot.row.id)"></el-button>
+										</template>
+									</el-table-column>
+								</el-table>
+							</el-col>
+						</el-row>
+					</template>
+					<template v-if="page == 'alerts'">
+						<div :span="24" class="form-row"> <el-switch v-model="settings.enableAlerts"></el-switch> &nbsp; Enable alerts </div>
+						<el-row>
+							<el-col :span="18">
+								<el-button @click="createAlert = true" class="form-row" type="primary" icon="el-icon-plus">Add Alert</el-button>
+								<el-button @click="exportAlerts()" class="form-row" icon="el-icon-upload2">Export</el-button>
+								<el-button @click="importAlerts()" class="form-row" icon="el-icon-download">Import</el-button>
+							</el-col>
+							<el-col :span="6">
+								<el-input v-model="searchAlerts" placeholder="Search alerts" class="form-row" prefix-icon="el-icon-search"></el-input>
+							</el-col>
+						</el-row>
+						<el-table
+							border
+							empty-text="You haven't created any alerts"
+							:data="filteredAlerts"
+							style="width: 100%">
+							<!-- <el-table-column type="selection" prop="i" label="Instrument"></el-table-column> -->
+							<el-table-column prop="i.symbol" label="Instrument" sortable>
+								<template scope="prop">
+									<a :href="`https://kite.zerodha.com/chart/${prop.row.i.exchange}/${prop.row.i.symbol}/${prop.row.i.token}`" target="_blank" style="color: inherit">
+										<span style="border-bottom: dotted 1px #aeaaaa">
+											{{prop.row.i.symbol}}
+										</span>
+										 &nbsp;
+										<el-tag type="info" size="mini"> <span style="color: #8492a6"> {{prop.row.i.exchange}}</span> </el-tag>
+									</a>
+								</template>
+							</el-table-column>
+							<el-table-column prop="price" label="Trigger Price"></el-table-column>
+							<el-table-column prop="id" label="Created" sortable>
+								<template scope="slot">
+									{{moment(slot.row.id).format('MMM DD, hh:mm A')}}
+								</template>
+							</el-table-column>
+							</el-table-column>
+							<el-table-column prop="time" sortable label="Triggered At">
+								<template scope="slot">
+									<div style="color: red" v-if="slot.row.time < 0">
+										Expired
+									</div>
+									{{slot.row.time > 0 ? moment(slot.row.time).format('DD MMM, hh:MM:SS A') : slot.row.time == 0 ? '--' : ''}}
+								</template>
+							</el-table-column>
+							<el-table-column width="120" prop="" label="Actions">
+								<template scope="slot">
+									<el-button circle icon="el-icon-edit" size="small" @click="editAlert(slot.row)"></el-button>
+									<el-button circle icon="el-icon-delete" size="small" @click="deleteAlert(slot.row.id)"></el-button>
+								</template>
+							</el-table-column>
+						</el-table>
+					</template>
+					<template v-if="page == 'settings'">
+						<el-col :span="24"> <el-switch v-model="settings.orderUpdateAlerts"></el-switch> &nbsp; Show desktop notifications about completed non-market orders</el-col>
+					</template>
+				</el-main>
+			</el-container>
+		</el-container>
+		<el-dialog :visible.sync="createAlert" title="Create Alert" width="500px">
+			<el-form label-width="150px" label-position="left">
+				<el-form-item label="Instrument">
+					<el-select placeholder="Search instruments" remote filterable :remote-method="searchInstruments" v-model="alert.i" value-key="token">
+						<el-option :key="item.token" :value="item" :label="`${item.exchange}:${item.symbol}`" v-for="item in instruments">
+							<span style="float: left">{{ item.symbol }}</span>
+      						<span style="float: right; color: #8492a6; font-size: 13px">{{ item.exchange }}</span>
+      					</el-option>
+      				</el-select>
+				</el-form-item>
+				<el-form-item label="Trigger Price">
+					<el-input-number v-model="alert.price"></el-input-number>
+				</el-form-item>
+				<el-form-item label="Alert sound">
+					<el-radio v-model="alert.method" label="speech">Speech</el-radio>
+					<el-radio v-model="alert.method" label="sound">Music</el-radio>
+					<el-radio v-model="alert.method" label="silent">None</el-radio>
+				</el-form-item>
+				<el-form-item label="Alert expires on price">
+					<el-input v-model.number="alert.expiryPrice"></el-input>
+				</el-form-item>
+			</el-form>
+
+			<span slot="footer" class="dialog-footer">
+				<el-button @click="createAlert = false">Cancel</el-button>
+				<el-button type="primary" @click="addAlert()">Save</el-button>
+			</span>
+		</el-dialog>
+		<el-dialog :visible.sync="createOrder" title="Order" width="600px">
+			<el-form v-if="createType == 'breakout'" label-width="200px" label-position="left">
+				<el-form-item label="Symbols list">
+					<el-input type="textarea" v-model="bulk.symbols"></el-input>
+				</el-form-item>
+				<el-form-item label="Product">
+					<el-radio v-model="bulk.product" label="MIS">MIS</el-radio>
+					<el-radio v-model="bulk.product" label="CNC">CNC</el-radio>
+				</el-form-item>
+				<el-form-item label="Exchange">
+					<el-radio v-model="bulk.exchange" label="NSE">NSE</el-radio>
+					<el-radio v-model="bulk.exchange" label="BSE">BSE</el-radio>
+				</el-form-item>
+				<el-form-item label="Candlestick Interval">
+					<el-radio v-model="bulk.interval" label="day">Day</el-radio>
+					<el-radio v-model="bulk.interval" label="week">Week</el-radio>
+				</el-form-item>
+				<el-form-item label="Interval Offset">
+					<template slot="label">
+						<el-tooltip :open-delay="500" :content="`Number of ${bulk.interval}s to subtract from current ${bulk.interval} to obtain reference candle`">
+							<div> Interval offset &nbsp; <i class="el-icon-info"></i> </div>
+						</el-tooltip>
+					</template>
+					<el-input type="number" v-model.number="bulk.intervalOffset"></el-input>
+				</el-form-item>
+				<el-form-item label="Price Offset">
+					<template slot="label">
+						<el-tooltip :open-delay="500" :content="`Value to add/subtract from candle high/low for breakout trigger price`">
+							<div> Price offset &nbsp; <i class="el-icon-info"></i> </div>
+						</el-tooltip>
+					</template>
+					<el-input type="number" v-model.number="bulk.priceOffset"></el-input>
+				</el-form-item>	
+				<el-form-item label="Risk Amount">
+					<el-input type="number" v-model.number="bulk.risk"></el-input>
+				</el-form-item>
+				<el-form-item label="Exclude already broke">
+					<template slot="label">
+						<el-tooltip :open-delay="500" :content="`Exclude if any of candles after the reference candle has crossed referece candle's high/low`">
+							<div> Exclude if already broke  &nbsp; <i class="el-icon-info"></i> </div>
+						</el-tooltip>
+					</template>
+					<el-switch v-model="bulk.excludeBroke" :label="true"></el-switch>
+				</el-form-item>
+				<el-form-item label="Assign tags">
+					 <el-select
+					    v-model="bulk.tags"
+					    multiple
+					    filterable
+					    allow-create
+					    placeholder="Assign tags to generated orders">
+					    <el-option
+					      v-for="item in bulk.tags"
+					      :key="item"
+					      :label="item"
+					      :value="item">
+					    </el-option>
+					  </el-select>
+				</el-form-item>
+			</el-form>
+			<el-form v-else label-width="150px" label-position="left">
+				<el-form-item label="Instrument">
+					<el-select placeholder="Search instruments" remote filterable :remote-method="searchInstruments" v-model="order.instrument" value-key="token">
+						<el-option :key="item.token" :value="item" :label="`${item.exchange}:${item.symbol}`" v-for="item in instruments">
+							<span style="float: left">{{ item.symbol }}</span>
+      						<span style="float: right; color: #8492a6; font-size: 13px">{{ item.exchange }}</span>
+      					</el-option>
+      				</el-select>
+				</el-form-item>
+				<el-form-item label="Transaction type">
+					<el-radio v-model="order.transaction_type" label="BUY">Buy</el-radio>
+					<el-radio v-model="order.transaction_type" label="SELL">Sell</el-radio>
+				</el-form-item>
+				<el-form-item label="Product">
+					<el-radio v-model="order.product" label="MIS">MIS</el-radio>
+					<el-radio v-model="order.product" label="CNC" v-if="!order.instrument.symbol.match(/FUT$/)">CNC</el-radio>
+					<el-radio v-model="order.product" label="NRML" v-if="order.instrument.symbol.match(/FUT$/)">NRML</el-radio>
+				</el-form-item>
+				<el-form-item label="Order Type">
+					<el-radio v-model="order.order_type" label="LIMIT">LIMIT</el-radio>
+					<el-radio v-model="order.order_type" label="SL">SL</el-radio>
+					<el-radio v-model="order.order_type" label="SL-M">SL-M</el-radio>
+				</el-form-item>
+				<el-form-item label="Trigger Price" v-if="['SL', 'SL-M'].includes(order.order_type)">
+					<el-input-number class="form-row" v-model="order.trigger_price"></el-input-number>
+				</el-form-item>
+				<el-form-item label="Quantity & Price">
+					<el-row>
+						<el-col :span="12" style="padding-right: 10px">
+							<el-input-number class="form-row" v-model="order.quantity" title="Quantity"></el-input-number>
+						</el-col>
+						<el-col :span="12">
+							<el-input-number :disabled="order.order_type == 'SL-M'" class="form-row" v-model="order.price" title="Price"></el-input-number>
+						</el-col>
+					</el-row>
+				</el-form-item>
+				<el-form-item label="Tags">
+					 <el-select
+					    v-model="order.tags"
+					    multiple
+					    filterable
+					    allow-create
+					    placeholder="Create or select tags">
+					    <el-option
+					      v-for="item in tags"
+					      :key="item"
+					      :label="item"
+					      :value="item">
+					    </el-option>
+					  </el-select>
+				</el-form-item>
+
+			</el-form>
+			<span slot="footer" class="dialog-footer">
+				<el-button @click="createOrder = false">Cancel</el-button>
+				<el-button type="primary" @click="addOrder()" :disabled="bulk.working"><i class="el-icon-loading" v-if="bulk.working"></i>Save</el-button>
+			</span>
+		</el-dialog>
+		<el-dialog :visible.sync="!localStorage.tos" title="Disclaimer" width="600px">
+			<p>To use this app, you must agree that you understand the risks associated in using certain features of this app such as 'Bulk Orders'. </p>
+			<p>You must agree to take responibility of verifying the orders subitted from this tool in order to avoid duplicate or incorrect orders. </p>
+			<span slot="footer" class="dialog-footer">
+				<el-button type="primary" @click="acceptTos()">Accept</el-button>
+			</span>
+		</el-dialog>
+	 </div>
+</body>
+
+<script src="js/script.js"></script>
+</html>
