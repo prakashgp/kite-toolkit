@@ -31,6 +31,18 @@ new Vue({
     settings: {
   		orderUpdateAlerts: true,
   		enableAlerts: true,
+      candleCloseAlerts: {
+        '5min': false,
+        '15min': false,
+        '1hr': false,
+      },
+      emailAlerts: {
+        enabled: false,
+        gmailAddress: '',
+        password: '',
+        toEmail: '',
+        subject: 'Kite toolkit - Price alert'
+      }
     },
 		createAlert: false,
     createOrder: false,
@@ -87,6 +99,9 @@ new Vue({
   },
 	methods: {
     moment,
+    track (event) {
+      mixpanel.track(event)
+    },
     createCustom (command) {
       this.createOrder = true
       this.createType = command
@@ -96,9 +111,11 @@ new Vue({
       location.reload()
     },
     contact() {
+      mixpanel.track("contact");
       prompt('Hi, I\'m Prakash. You can contact me at: ', 'prakash.gpzz@gmail.com')
     },
     donate () {
+      mixpanel.track("donate");
       location.href = 'https://www.instamojo.com/@prakashgp'
     },
     createOrderClick (type) {
@@ -106,10 +123,12 @@ new Vue({
       this.createType = type
     },
 		exportOrders () {
+      mixpanel.track("exportOrders");
 			var csv = Papa.unparse(this.orders)
 			saveToFile('kite_orders.csv', csv)
 		},
 		importOrders () {
+      mixpanel.track("importOrders");
 			readUserFile().then(csv => {
 				Papa.parse(csv, {
 					header: true,
@@ -131,6 +150,7 @@ new Vue({
 			})
 		},
     submitOrders (filter) {
+      mixpanel.track("submitOrders");
       var filteredOrders = this.filteredOrders.filter(order => {
         if (filter) {
           var tagMatch = filter.match(/tag\:(.*)/)
@@ -141,6 +161,7 @@ new Vue({
       var postedOrdersCount = filteredOrders.filter(order => order.status == 'POSTED').length
       if (postedOrdersCount > 0 && !confirm('There are ' + postedOrdersCount + ' orders in list with status = POSTED. Posting those may result in duplicate orders.')) return
       this.placeBulkOrders(filteredOrders).then(() => {
+        mixpanel.people.increment("submitOrders", filteredOrders);
         this.$message('Orders submitted successfully')
       }).catch(error => {
         this.$message({
@@ -181,6 +202,7 @@ new Vue({
       return this.instruments
     },
     addAlert () {
+      mixpanel.track("addAlert");
       if (!this.alert.id) {
         this.alerts.push(Object.assign({id: Date.now()}, this.alert))
       } else {
@@ -207,6 +229,7 @@ new Vue({
       this.saveAlerts()
     },
     createBulkOrders () {
+      mixpanel.track("createBulkOrders");
       var symbols = this.bulk.symbols.split(/\r?\n/)
       if (!Array.isArray(symbols) && typeof symbols == 'string') symbols = [symbols]
       this.bulk.working = true
@@ -218,6 +241,7 @@ new Vue({
       }, 500).then(() => {
         this.bulk.working = false
         this.createOrder = false
+        mixpanel.people.increment("createBulkOrders", symbols.length);
         this.$message('Orders generated successfully')
       })
     },
@@ -259,6 +283,7 @@ new Vue({
       })
     },
     addOrder () {
+      mixpanel.track("addOrder");
       if (this.createType == 'breakout') {
         return this.createBulkOrders()
       }
@@ -292,7 +317,10 @@ new Vue({
     updateTags () {
       this.orders.forEach(order => {
         order.tags.forEach(tag => {
-          if (this.tags.indexOf(tag) < 0) this.tags.push(tag)
+          if (this.tags.indexOf(tag) < 0) {
+            mixpanel.people.increment("addTag");
+            this.tags.push(tag)
+          }
         })
       })
     },
@@ -307,9 +335,11 @@ new Vue({
       this.ordersSelection = selection
     },
     exportAlerts () {
+      mixpanel.track("exportAlerts");
       saveToFile('kitekit_alerts.json', JSON.stringify(this.alerts))
     },
     importAlerts () {
+      mixpanel.track("importAlerts");
       readUserFile().then(json => {
         var alerts = JSON.parse(json)
         alerts.forEach(alert => {
@@ -320,6 +350,8 @@ new Vue({
     }
 	},
 	mounted () {
+      mixpanel.track("Opened the app");
+
 			if (!session.user_id || !session.public_token) return this.$message({
 				message: 'Unable to find active login',
 				type: 'error'

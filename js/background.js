@@ -42,7 +42,7 @@ function init() {
 		user_id: session.user_id,
 		access_token: session.public_token
 	})
-	if (!localStorage.instruments_last_updated || moment().diff(localStorage.instruments_last_updated, 'day') >= 1) {
+	if (!localStorage.instruments_last_updated || moment().diff(Number(localStorage.instruments_last_updated), 'day') >= 1) {
 		(new KiteConnect({
 			api_key: "kitefront",
 			csrfToken: session.public_token,
@@ -64,6 +64,14 @@ function init() {
 	ticker.on("connect", subscribe)
 	ticker.on('order_update', onOrderUpdate)
 }
+setInterval(() => {
+	var time = new Date()
+	if (settings && settings.candleCloseAlerts && time.getSeconds() % 60 == 0) {
+		if (settings.candleCloseAlerts['5min'] && time.getMinutes() % 5 == 0) musicAlert('woody')
+		if (settings.candleCloseAlerts['15min'] && time.getMinutes() % 15 == 0) musicAlert('woody')
+		if (settings.candleCloseAlerts['1hr'] && time.getMinutes() == 59) speechAlert('trading alert: watch for houurlee candle close')
+	}
+}, 1000)
 
 function onTicks(ticks) {
 	if (!settings.enableAlerts) return
@@ -83,13 +91,25 @@ function onTicks(ticks) {
 					saveAlerts()
 					if (alert.method == 'sound') musicAlert()
 					if (alert.method == 'speech') speechAlert(`Trading Alert: Price of ${alert.i.symbol} is now ${instrument.last_price}`)
-					notifier('Trading Alert', `Price of ${alert.i.symbol} is now ${instrument.last_price}`, `https://kite.zerodha.com/chart/${alert.i.exchange}/${alert.i.symbol}/${alert.i.token}`);
+					notifier('Price Alert', `Price of ${alert.i.symbol} is now ${instrument.last_price}`, `https://kite.zerodha.com/chart/${alert.i.exchange}/${alert.i.symbol}/${alert.i.token}`);
+					if (settings.emailAlerts.enabled ) Email.send({
+					    Host : "smtp.gmail.com",
+					    Username : settings.emailAlerts.gmailAddress,
+					    Password : settings.emailAlerts.password,
+					    To : settings.emailAlerts.toEmail,
+					    From : settings.emailAlerts.gmailAddress,
+					    Subject : settings.emailAlerts.subject || 'Kite toolkit: Price Alert',
+					    Body : `Price of ${alert.i.symbol} is now ${instrument.last_price}`
+					}).then(console.log);
 				} else if (
-					(alert.initialDiff >= 0 // alert price was greater than current price
-					&& alert.expiryPrice >= instrument.last_price) // current price is now reached alert price
-					|| 
-					(alert.initialDiff < 0 // alert price was lesser than current price
-					&& alert.expiryPrice <= instrument.last_price)
+					alert.expiryPrice && 
+					(
+						(alert.initialDiff >= 0 // alert price was greater than current price
+						&& alert.expiryPrice >= instrument.last_price) // current price is now reached alert price
+						|| 
+						(alert.initialDiff < 0 // alert price was lesser than current price
+						&& alert.expiryPrice <= instrument.last_price)
+					)
 				) {
 					alerts[idx].time = -1
 					saveAlerts()
@@ -117,9 +137,12 @@ function onOrderUpdate (order) {
 				}
 			})
 			if (item.timestamp <= localStorage.lastAlertId) return 0;
-			if (order.order_type == 'MARKET' || order.status != 'COMPLETE') return 0;
-			musicAlert()
-			notifier('Order Executed', `${order.transaction_type} ${order.quantity} ${order.exchange}:${order.tradingsymbol} @ ${order.average_price}`, `https://kite.zerodha.com/chart/${order.exchange}/${order.tradingsymbol}/${order.instrument_token}`)
+			if (order.status != 'COMPLETE') return 0;
+			console.log(moment().diff(item.timestamp, 'second'))
+			if (moment().diff(item.timestamp, 'second') < 10) {
+				musicAlert()
+				notifier('Order Executed', `${order.transaction_type} ${order.quantity} ${order.exchange}:${order.tradingsymbol} @ ${order.average_price}`, `https://kite.zerodha.com/chart/${order.exchange}/${order.tradingsymbol}/${order.instrument_token}`)
+			}
 		})
 		saveOrders()
 		if (firstAlert.timestamp > localStorage.lastAlertId) localStorage.lastAlertId = firstAlert.timestamp

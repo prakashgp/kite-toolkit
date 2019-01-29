@@ -6,8 +6,8 @@ function speechAlert(text) {
 	})
 }
 
-function musicAlert() {
-	$('#music').attr('src', '/music/to-the-point.mp3')[0].play()
+function musicAlert(name = 'to-the-point') {
+	$('#music').attr('src', `/music/${name}.mp3`)[0].play()
 }
 
 function notifier(title, message, url) {
@@ -19,6 +19,7 @@ function notifier(title, message, url) {
 		message: message || ""
 	}, function () {
 	});
+
 	if (url) {
 		chrome.notifications.onClicked.addListener(function (nid) {
 			if (nid == id) {

@@ -4,6 +4,8 @@
 	<title>Kite Toolkit</title>
 	<link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
 	<link rel="stylesheet" href="css/style.css">
+	<script type="text/javascript" src="/lib/mixpanel.js"></script>
+	<script src="https://cdn4.mxpnl.com/libs/mixpanel-2-latest.min.js"></script>
 	<script src="/lib/papaparse.min.js"></script>
 	<script src="/lib/moment.min.js"></script>
 	<script src="/lib/jquery-2.1.4.min.js"></script>
@@ -173,7 +175,24 @@
 						</el-table>
 					</template>
 					<template v-if="page == 'settings'">
-						<el-col :span="24"> <el-switch v-model="settings.orderUpdateAlerts"></el-switch> &nbsp; Show desktop notifications about completed non-market orders</el-col>
+						<p>
+							<el-switch @change="track('notifyOrderStatus')" v-model="settings.orderUpdateAlerts"></el-switch> &nbsp; Show desktop notifications about completed non-market orders
+						</p>
+						<p> <strong> Candle close alerts </strong></p>
+						<p> <el-switch @change="track('CandleClose_5min')" v-model="settings.candleCloseAlerts['5min']"></el-switch> &nbsp; Alert every 5 minutes (short sound)</p>
+						<p> <el-switch @change="track('CandleClose_15min')" v-model="settings.candleCloseAlerts['15min']"></el-switch> &nbsp; Alert every 15 minutes (short sound)</p>
+						<p> <el-switch @change="track('CandleClose_1hr')" v-model="settings.candleCloseAlerts['1hr']"></el-switch> &nbsp; Alert every 1 hour (speeking alert)</p>
+						<p><strong> Email price alerts </strong></p>
+						<p> <el-switch @change="track('EmailAlerts')" v-model="settings.emailAlerts.enabled"></el-switch> &nbsp; Send price alerts to email (requires gmail account)  </p>
+						<template v-if="settings.emailAlerts.enabled">
+							<p> If you have two step verification enabled, you need to generate app password instead of regular password. <a href="https://myaccount.google.com/apppasswords" target="_blank">click here to generate app password</a> </p>
+							<div style="width: 500px">
+								<p> <el-input v-model="settings.emailAlerts.gmailAddress" placeholder="Your full gmail address" type="text"></el-input> </p>
+								<p> <el-input v-model="settings.emailAlerts.password" placeholder="Gmail account password" type="password"></el-input> </p>
+								<p> <el-input v-model="settings.emailAlerts.toEmail" placeholder="Send alerts to email address" type="text"></el-input> </p>
+								<p> <el-input v-model="settings.emailAlerts.subject" placeholder="Email subject" type="text"></el-input> </p>
+							</div>
+						</template>
 					</template>
 				</el-main>
 			</el-container>
